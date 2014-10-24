@@ -11,7 +11,9 @@ class SNP:
             self.chromosome = '0'+self.chromosome
         self.position = int(data[2].strip('"'))
         self.genotype = data[3].strip('"')
-        if self.genotype == '--':
+        if len(data) == 5:
+          self.genotype += data[4]
+        if self.genotype in ('--','00'):
           self.genotype = None
         elif self.chromosome == 'X' and len(self.genotype) == 2:
           self.genotype = self.genotype[0]
@@ -65,16 +67,16 @@ class Genome:
     def read(self,infile):
         sep = None
         for l in infile:
-            if len(l) and l[0] != '#':
-                if l.startswith('RSID'):
-                    if ',' in l:
-                        sep = ','
-                else:
-                    parts = l.strip().split(sep)
-                    snp = SNP(parts)
-                    if not snp.chromosome in self.chromosomes:
-                        self.chromosomes[snp.chromosome] = {}
-                    self.chromosomes[snp.chromosome][snp.position] = snp
+          if len(l) and l[0] != '#':
+              if l.startswith('RSID') or l.startswith('rsid'):
+                  if ',' in l:
+                      sep = ','
+              else:
+                  parts = l.strip().split(sep)
+                  snp = SNP(parts)
+                  if not snp.chromosome in self.chromosomes:
+                      self.chromosomes[snp.chromosome] = {}
+                  self.chromosomes[snp.chromosome][snp.position] = snp
 
     def __str__(self):
         clist = self.chromosomes.keys()
@@ -114,7 +116,6 @@ class Genome:
             if c in self.chromosomes and c in other.chromosomes:
                 matches = 0
                 diffs = 0
-                transposes = 0
                 nulls = 0
                 for position,snp in self.chromosomes[c].iteritems():
                     if position in other.chromosomes[c]:
@@ -123,20 +124,19 @@ class Genome:
                             nulls += 1
                         elif snp.genotype != other.chromosomes[c][position].genotype:
                             if len(snp.genotype) == 2 and snp.genotype[0] == other.chromosomes[c][position].genotype[1] and snp.genotype[1] == other.chromosomes[c][position].genotype[0]:
-                                transposes += 1
+                                pass
                             else:
                                 diffs += 1
                                 if diffFile is not None:
                                     diffFile.write(c+','+str(position)+','+snp.genotype+','+other.chromosomes[c][position].genotype+'\n')
                 total_matches += matches
                 total_nulls += nulls
-                total_transposes += transposes
                 total_diffs += diffs
-                print '\tcommon SNPs:',matches,'nulls (one or both):',nulls,'transposes:',transposes,'different results:',diffs,'({:.2%} disagreement)'.format(diffs/float(matches))
+                print '\tcommon SNPs:',matches,'nulls (one or both):',nulls,'different results:',diffs,'({:.2%} disagreement)'.format(diffs/float(matches))
             else:
                 print '\tno matching SNPs'
         print 'All:',self.label,total_tcount,'SNPs,',other.label,total_ocount,'SNPs'
-        print '\tcommon SNPs:',total_matches,'nulls (one or both):',total_nulls,'transposes:',total_transposes,'different results:',total_diffs,'({:.2%} disagreement)'.format(total_diffs/float(total_matches))
+        print '\tcommon SNPs:',total_matches,'nulls (one or both):',total_nulls,'different results:',total_diffs,'({:.2%} disagreement)'.format(total_diffs/float(total_matches))
 
     def phase(self,p1,p2):
       ckeys = self.chromosomes.keys()
